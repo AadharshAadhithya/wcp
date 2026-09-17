@@ -44,17 +44,21 @@ def test_manifest_rejects_unknown_fields(tmp_path: Path) -> None:
         load_manifest(manifest)
 
 
-def test_manifest_rejects_invalid_link_id() -> None:
-    with pytest.raises(ValueError, match="linked entity id"):
-        ProjectManifest.model_validate(
-            {
-                "project": {
-                    "id": "00000000000000000000000000",
-                    "key": "NR",
-                    "title": "Neural Receiver",
-                    "domain": "research",
-                },
-                "git": {"canonical_remote": "example"},
-                "links": {"vault_entity_id": "not-an-id"},
-            }
-        )
+def test_manifest_accepts_adapter_native_link_ids() -> None:
+    manifest = ProjectManifest.model_validate(
+        {
+            "project": {
+                "id": "00000000000000000000000000",
+                "key": "NR",
+                "title": "Neural Receiver",
+                "domain": "research",
+            },
+            "git": {"canonical_remote": "example"},
+            "links": {
+                "vault_entity_id": "Machine/Domains/Research/Projects/NR.md",
+                "plane_project_id": "e1c25c66-5bb8-465e-a818-92a483423443",
+            },
+        }
+    )
+
+    assert manifest.links.plane_project_id.startswith("e1c25c66")

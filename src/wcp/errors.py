@@ -15,3 +15,7 @@ class ManifestError(WcpError):
 
 class InitializationConflict(WcpError):
     """Raised when init arguments disagree with an existing project identity."""
+
+
+class IdempotencyConflict(WcpError):
+    """Raised when an idempotency key is reused for a different operation."""

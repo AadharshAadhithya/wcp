@@ -68,13 +68,6 @@ class ProjectLinks(StrictModel):
     plane_workspace_id: str | None = None
     plane_project_id: str | None = None
 
-    @field_validator("vault_entity_id", "plane_workspace_id", "plane_project_id")
-    @classmethod
-    def validate_ids(cls, value: str | None) -> str | None:
-        if value is not None and not is_ulid(value):
-            raise ValueError("linked entity id must be a canonical ULID")
-        return value
-
 
 class ProjectDefaults(StrictModel):
     tracker: str = "mlflow"
