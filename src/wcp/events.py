@@ -15,6 +15,7 @@ class EntityType(StrEnum):
     QUESTION = "question"
     SESSION = "session"
     EXPERIMENT = "experiment"
+    RUN = "run"
     CLAIM = "claim"
     REVIEW = "review"
 

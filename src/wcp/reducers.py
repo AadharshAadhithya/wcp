@@ -16,7 +16,8 @@ class InvalidTransition(WcpError):
 INITIAL_STATES: dict[EntityType, str] = {
     EntityType.QUESTION: "proposed",
     EntityType.SESSION: "queued",
-    EntityType.EXPERIMENT: "planned",
+    EntityType.EXPERIMENT: "draft",
+    EntityType.RUN: "planned",
     EntityType.CLAIM: "proposed",
     EntityType.REVIEW: "pending",
 }
@@ -43,6 +44,14 @@ TRANSITIONS: dict[EntityType, dict[str, set[str]]] = {
         "failed": set(),
     },
     EntityType.EXPERIMENT: {
+        "draft": {"ready", "cancelled"},
+        "ready": {"active", "cancelled"},
+        "active": {"awaiting-analysis", "cancelled"},
+        "awaiting-analysis": {"analyzed", "active"},
+        "analyzed": set(),
+        "cancelled": set(),
+    },
+    EntityType.RUN: {
         "planned": {"launched", "cancelled"},
         "launched": {"running", "failed", "cancelled"},
         "running": {"succeeded", "failed", "cancelled"},

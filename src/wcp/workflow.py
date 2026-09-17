@@ -4,9 +4,14 @@ from __future__ import annotations
 
 from typing import Any
 
+from wcp.errors import WcpError
 from wcp.events import ActorKind, EntityType, Event, StoredEvent
 from wcp.ids import new_ulid
 from wcp.store import EventStore
+
+
+class WorkflowGuardError(WcpError):
+    """Raised when a human-judgment or evidence invariant is not satisfied."""
 
 
 class Workflow:
@@ -64,6 +69,20 @@ class Workflow:
             and actor_kind is not ActorKind.HUMAN
         ):
             raise ValueError("Only a human actor may settle a research question")
+        if (
+            entity_type is EntityType.REVIEW
+            and target in {"accepted", "rejected"}
+            and actor_kind is not ActorKind.HUMAN
+        ):
+            raise ValueError("Only a human actor may accept or reject a review")
+
+        transition_data = dict(data or {})
+        if entity_type is EntityType.CLAIM and target == "accepted":
+            self._validate_claim_acceptance(entity_id, transition_data)
+            transition_data["approved_by"] = actor_id
+        if entity_type is EntityType.QUESTION and target == "settled":
+            self._validate_question_settlement(entity_id, transition_data)
+            transition_data["approved_by"] = actor_id
         return self.store.append(
             Event(
                 project_id=self.project_id,
@@ -73,10 +92,52 @@ class Workflow:
                 actor_id=actor_id,
                 actor_kind=actor_kind,
                 session_id=session_id,
-                payload={"to": target, "data": data or {}},
+                payload={"to": target, "data": transition_data},
                 idempotency_key=idempotency_key or new_ulid(),
             )
         )
+
+    def _validate_claim_acceptance(
+        self, entity_id: str, transition_data: dict[str, Any]
+    ) -> None:
+        claim = self.store.get(EntityType.CLAIM.value, entity_id)
+        if claim is None:
+            raise WorkflowGuardError(f"No claim {entity_id}")
+        combined = {**claim["data"], **transition_data}
+        required = ("exact_scope", "supporting_evidence", "confidence", "limitations")
+        missing = [field for field in required if not combined.get(field)]
+        if missing:
+            raise WorkflowGuardError("Claim acceptance requires: " + ", ".join(missing))
+
+    def _validate_question_settlement(
+        self, entity_id: str, transition_data: dict[str, Any]
+    ) -> None:
+        question = self.store.get(EntityType.QUESTION.value, entity_id)
+        if question is None:
+            raise WorkflowGuardError(f"No question {entity_id}")
+        combined = {**question["data"], **transition_data}
+        required = (
+            "scope",
+            "answer_criteria",
+            "evidence_ids",
+            "claim_ids",
+            "competing_explanations",
+            "limitations",
+            "confidence",
+            "follow_up_questions",
+            "conclusion",
+        )
+        missing = [field for field in required if not combined.get(field)]
+        if missing:
+            raise WorkflowGuardError(
+                "Question settlement requires: " + ", ".join(missing)
+            )
+        for claim_id in combined["claim_ids"]:
+            claim = self.store.get(EntityType.CLAIM.value, claim_id)
+            if claim is None or claim["state"] != "accepted":
+                raise WorkflowGuardError(
+                    f"Question settlement requires accepted claim {claim_id}"
+                )
 
     def record(
         self,

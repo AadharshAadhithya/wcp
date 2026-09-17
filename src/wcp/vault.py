@@ -46,6 +46,7 @@ class VaultProjector:
         directories = {
             EntityType.QUESTION: "Domains/Research/Questions",
             EntityType.EXPERIMENT: "Domains/Research/Experiments",
+            EntityType.RUN: "Domains/Research/Experiments/Runs",
             EntityType.CLAIM: "Domains/Research/Claims",
             EntityType.SESSION: "Sessions",
             EntityType.REVIEW: "Reviews",

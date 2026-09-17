@@ -169,6 +169,8 @@ class PlaneProjector:
             "abandoned": "cancelled",
             "superseded": "cancelled",
             "planned": "unstarted",
+            "draft": "backlog",
+            "active": "started",
             "launched": "started",
             "running": "started",
             "succeeded": "completed",

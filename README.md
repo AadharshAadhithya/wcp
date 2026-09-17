@@ -13,9 +13,15 @@ the operational records kept in sync.
 
 ## Status
 
-The philosophy and v1 boundary are agreed. The first implementation milestone
-establishes project identity through a strict, versioned manifest and an
-idempotent CLI.
+The philosophy and v1 boundary are agreed. The implementation now includes
+project identity, an append-only SQLite event store, deterministic lifecycle
+reducers, human approval guards, local experiment provenance, an Obsidian
+`Machine/` projector, an idempotent Plane projector, Codex JSONL session
+archiving, and a capability-limited MCP server.
+
+The live neural-receiver integration still requires the user's research
+repository, Obsidian vault path, and Plane credentials. Product adapters are
+configured at runtime; secrets never enter this repository.
 
 ## Development
 
@@ -23,7 +29,7 @@ WCP requires Python 3.12 or later. With
 [`uv`](https://docs.astral.sh/uv/) installed:
 
 ```bash
-uv sync --extra dev
+uv sync --extra dev --extra agent
 uv run pytest
 ```
 
@@ -39,3 +45,12 @@ and returns the existing identity without changing it. Supplying arguments
 that conflict with an existing identity fails explicitly.
 
 Validate a manifest directly with `uv run wcp validate [path]`.
+
+Start the bundled vertical-slice question and experiment design:
+
+```bash
+uv run wcp sample neural-receiver
+```
+
+See [`docs/getting-started.md`](docs/getting-started.md) for the complete local,
+Plane, Obsidian, experiment, Codex-stream, and MCP workflows.

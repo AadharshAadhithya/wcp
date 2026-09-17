@@ -15,10 +15,12 @@ from wcp.archive import SessionArchive
 from wcp.codex import CodexStreamIngestor
 from wcp.errors import WcpError
 from wcp.events import ActorKind, EntityType
+from wcp.experiment import ExperimentDesign, LocalExperimentRunner
 from wcp.manifest import Domain, load_manifest
 from wcp.plane import PlaneClient, PlaneProjector
 from wcp.project import MANIFEST_RELATIVE_PATH, initialize_project
 from wcp.runtime import database_path
+from wcp.sample import start_neural_receiver_sample
 from wcp.store import EventStore
 from wcp.vault import VaultProjector
 from wcp.workflow import Workflow
@@ -155,6 +157,39 @@ def _parser() -> argparse.ArgumentParser:
     codex_run.add_argument("--question-id")
     _add_runtime_arguments(codex_run)
     codex_run.add_argument("codex_args", nargs=argparse.REMAINDER)
+
+    experiment = commands.add_parser(
+        "experiment", help="design and execute reproducible experiments"
+    )
+    experiment_commands = experiment.add_subparsers(
+        dest="experiment_command", required=True
+    )
+    experiment_design = experiment_commands.add_parser(
+        "design", help="record and validate an experiment design"
+    )
+    experiment_design.add_argument("--data", required=True, help="design JSON object")
+    experiment_design.add_argument(
+        "--draft", action="store_true", help="leave the experiment in draft state"
+    )
+    _add_runtime_arguments(experiment_design)
+    _add_actor_arguments(experiment_design)
+
+    experiment_execute = experiment_commands.add_parser(
+        "execute", help="run a ready experiment locally"
+    )
+    experiment_execute.add_argument("experiment_id")
+    experiment_execute.add_argument("--exploratory", action="store_true")
+    experiment_execute.add_argument("--metrics-file", type=Path)
+    experiment_execute.add_argument("--actor", default="human:owner")
+    _add_runtime_arguments(experiment_execute)
+    experiment_execute.add_argument("experiment_args", nargs=argparse.REMAINDER)
+
+    sample = commands.add_parser("sample", help="start a bundled vertical-slice sample")
+    sample_commands = sample.add_subparsers(dest="sample_command", required=True)
+    neural_sample = sample_commands.add_parser(
+        "neural-receiver", help="seed the neural-receiver research question"
+    )
+    _add_runtime_arguments(neural_sample)
     return parser
 
 
@@ -170,6 +205,8 @@ def _runtime(args: argparse.Namespace) -> tuple[Workflow, EventStore]:
 
 
 def _json_object(raw: str) -> dict[str, object]:
+    if raw.startswith("@"):
+        raw = Path(raw[1:]).expanduser().read_text(encoding="utf-8")
     try:
         value = json.loads(raw)
     except json.JSONDecodeError as error:
@@ -352,6 +389,61 @@ def run(arguments: Sequence[str] | None = None) -> int:
                     indent=2,
                 )
             )
+            return 0
+
+        if args.command == "experiment":
+            workflow, store = _runtime(args)
+            if args.experiment_command == "design":
+                design = ExperimentDesign.model_validate(_json_object(args.data))
+                event = workflow.create(
+                    EntityType.EXPERIMENT,
+                    design.model_dump(mode="json"),
+                    actor_id=args.actor,
+                    actor_kind=ActorKind(args.actor_kind),
+                    session_id=args.session_id,
+                    idempotency_key=args.idempotency_key,
+                )
+                if not args.draft:
+                    workflow.transition(
+                        EntityType.EXPERIMENT,
+                        event.entity_id,
+                        "ready",
+                        actor_id=args.actor,
+                        actor_kind=ActorKind(args.actor_kind),
+                        session_id=args.session_id,
+                    )
+                print(event.entity_id)
+                return 0
+
+            experiment_args = args.experiment_args
+            if experiment_args and experiment_args[0] == "--":
+                experiment_args = experiment_args[1:]
+            result = LocalExperimentRunner(
+                workflow, store.path.parent / "artifacts"
+            ).execute(
+                args.experiment_id,
+                experiment_args,
+                repository=args.project_path,
+                actor_id=args.actor,
+                exploratory=args.exploratory,
+                metrics_file=args.metrics_file,
+            )
+            print(
+                json.dumps(
+                    {
+                        "run_id": result.run_id,
+                        "return_code": result.return_code,
+                        "manifest": str(result.manifest_path),
+                    },
+                    indent=2,
+                )
+            )
+            return result.return_code
+
+        if args.command == "sample":
+            workflow, _store = _runtime(args)
+            result = start_neural_receiver_sample(workflow)
+            print(json.dumps(result, indent=2))
             return 0
 
         manifest_path = _manifest_path(args.path)
