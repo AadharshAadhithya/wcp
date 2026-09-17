@@ -13,6 +13,29 @@ the operational records kept in sync.
 
 ## Status
 
-The philosophy and v1 boundary are agreed. The implementation is not yet
-started.
+The philosophy and v1 boundary are agreed. The first implementation milestone
+establishes project identity through a strict, versioned manifest and an
+idempotent CLI.
 
+## Development
+
+WCP requires Python 3.12 or later. With
+[`uv`](https://docs.astral.sh/uv/) installed:
+
+```bash
+uv sync --extra dev
+uv run pytest
+```
+
+Initialize a Git repository as a WCP project:
+
+```bash
+uv run wcp init --key NR --title "Neural Receiver" --domain research
+```
+
+The first invocation discovers the repository's `origin`, generates a stable
+ULID, and atomically writes `.wcp/project.yaml`. Repeating `wcp init` validates
+and returns the existing identity without changing it. Supplying arguments
+that conflict with an existing identity fails explicitly.
+
+Validate a manifest directly with `uv run wcp validate [path]`.

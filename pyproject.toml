@@ -1,0 +1,38 @@
+[build-system]
+requires = ["hatchling>=1.27"]
+build-backend = "hatchling.build"
+
+[project]
+name = "wcp"
+version = "0.1.0"
+description = "Human-owned, agent-native personal AI infrastructure"
+readme = "README.md"
+requires-python = ">=3.12"
+authors = [{ name = "Aadharsh Aadhithya" }]
+dependencies = [
+  "pydantic>=2.10,<3",
+  "PyYAML>=6.0.2,<7",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.3,<9",
+  "ruff>=0.9,<1",
+]
+
+[project.scripts]
+wcp = "wcp.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/wcp"]
+
+[tool.pytest.ini_options]
+addopts = "-ra"
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 88
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]

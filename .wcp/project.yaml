@@ -1,0 +1,16 @@
+schema_version: 1
+project:
+  id: 01M2RND4KKR97VSZGQ74GYADHR
+  key: WCP
+  title: Personal AI Infrastructure
+  domain: dev
+git:
+  canonical_remote: https://github.com/AadharshAadhithya/wcp.git
+links:
+  vault_entity_id: null
+  plane_workspace_id: null
+  plane_project_id: null
+defaults:
+  tracker: mlflow
+  artifact_profile: vpn-storage
+  policy_profile: research-default
